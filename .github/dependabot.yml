@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Composite actions: Dependabot only sees `uses:` inside the directories listed
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /cleanup-workflow-runs
+      - /setup-azure-terraform
+      - /terraform-command
+      - /terraform-plan-extract
+      - /terraform-run
+      - /terraform-summary
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

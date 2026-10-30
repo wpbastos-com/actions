@@ -1,6 +1,6 @@
 name: 'Cleanup Workflow Runs'
 description: 'Delete old workflow runs to keep the repository clean'
-author: 'testfy.ai'
+author: 'wpbastos-com'
 
 branding:
   icon: 'trash-2'
@@ -32,140 +32,12 @@ runs:
   steps:
     - name: Delete old workflow runs
       id: cleanup
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         RETENTION_DAYS: ${{ inputs.retention-days }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
-          const retentionDays = parseInt(process.env.RETENTION_DAYS, 10);
-          const cutoffDate = new Date();
-          cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-
-          core.startGroup('Cleanup Configuration');
-          core.info(`Retention days: ${retentionDays}`);
-          core.info(`Cutoff date: ${cutoffDate.toISOString()}`);
-          core.info(`Runs created before this date will be deleted`);
-          core.endGroup();
-
-          // Get all workflows in the repository
-          core.startGroup('Fetching workflows');
-          const { data: workflows } = await github.rest.actions.listRepoWorkflows({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            per_page: 100
-          });
-          core.info(`Found ${workflows.workflows.length} workflows`);
-          core.endGroup();
-
-          let totalDeleted = 0;
-          let totalSkipped = 0;
-          let totalErrors = 0;
-
-          // Process each workflow
-          for (const workflow of workflows.workflows) {
-            core.startGroup(`Processing: ${workflow.name}`);
-
-            let page = 1;
-            let hasMore = true;
-            let workflowDeleted = 0;
-
-            while (hasMore) {
-              // Get workflow runs
-              const { data: runs } = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: workflow.id,
-                per_page: 100,
-                page: page
-              });
-
-              if (runs.workflow_runs.length === 0) {
-                hasMore = false;
-                break;
-              }
-
-              // Filter runs older than cutoff date
-              const oldRuns = runs.workflow_runs.filter(run => {
-                const runDate = new Date(run.created_at);
-                return runDate < cutoffDate;
-              });
-
-              // If no old runs on this page, check if we should continue
-              if (oldRuns.length === 0) {
-                // If all runs on this page are newer, no need to check more pages
-                // (runs are sorted by created_at desc)
-                const newestOnPage = new Date(runs.workflow_runs[runs.workflow_runs.length - 1].created_at);
-                if (newestOnPage >= cutoffDate) {
-                  page++;
-                  continue;
-                }
-                hasMore = false;
-                break;
-              }
-
-              // Delete old runs
-              for (const run of oldRuns) {
-                try {
-                  await github.rest.actions.deleteWorkflowRun({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    run_id: run.id
-                  });
-                  workflowDeleted++;
-                  totalDeleted++;
-                } catch (error) {
-                  if (error.status === 403) {
-                    core.info(`Skipped run #${run.run_number} (in progress or protected)`);
-                    totalSkipped++;
-                  } else {
-                    core.error(`Error deleting run #${run.run_number}: ${error.message}`);
-                    totalErrors++;
-                  }
-                }
-              }
-
-              // Check if there are more pages
-              if (runs.workflow_runs.length < 100) {
-                hasMore = false;
-              } else {
-                page++;
-              }
-
-              // Rate limiting: pause briefly between pages
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            core.info(`Deleted ${workflowDeleted} runs from ${workflow.name}`);
-            core.endGroup();
-          }
-
-          // Set outputs
-          core.setOutput('total-deleted', totalDeleted);
-          core.setOutput('total-skipped', totalSkipped);
-          core.setOutput('total-errors', totalErrors);
-
-          // Summary
-          core.startGroup('Cleanup Summary');
-          core.info(`Total runs deleted: ${totalDeleted}`);
-          core.info(`Total runs skipped: ${totalSkipped}`);
-          core.info(`Total errors: ${totalErrors}`);
-          core.endGroup();
-
-          // Write job summary
-          let summary = `# Workflow Runs Cleanup\n\n`;
-          summary += `**Retention Policy:** ${retentionDays} days\n`;
-          summary += `**Cutoff Date:** ${cutoffDate.toISOString().split('T')[0]}\n\n`;
-          summary += `## Results\n\n`;
-          summary += `| Metric | Count |\n|--------|-------|\n`;
-          summary += `| Runs Deleted | ${totalDeleted} |\n`;
-          summary += `| Runs Skipped | ${totalSkipped} |\n`;
-          summary += `| Errors | ${totalErrors} |\n`;
-
-          await core.summary.addRaw(summary).write();
-
-          if (totalErrors > 0) {
-            core.warning(`${totalErrors} errors occurred during cleanup`);
-          }
-
-          core.info('Cleanup completed successfully');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'cleanup.js'));
+          await script({ github, context, core, exec });

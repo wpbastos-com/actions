@@ -1,6 +1,10 @@
-# Testfy.ai GitHub Actions
+# WPBastos GitHub Actions
 
 A collection of reusable GitHub Actions for Terraform and Azure workflows.
+
+## Versioning
+
+Reference actions by the major tag (`@v0`), which is moved on every release, or pin an exact tag (`@v0.0.8`). `@main` is the development branch — don't depend on it.
 
 ## Actions
 
@@ -17,15 +21,14 @@ A collection of reusable GitHub Actions for Terraform and Azure workflows.
 
 ## setup-azure-terraform
 
-Setup Azure CLI, Terraform, and login to Azure with OIDC authentication.
+Install Terraform, export the `ARM_*` variables for the AzureRM provider, and login to Azure with OIDC. Azure CLI is expected on the runner (present on GitHub-hosted images) — it is not installed by this action.
 
 ### Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `terraform-version` | Terraform version to install | No | `latest` |
-| `terraform-wrapper` | Enable terraform wrapper for output parsing | No | `true` |
-| `azure-cli-version` | Azure CLI version to install | No | `latest` |
+| `terraform-wrapper` | Enable the [setup-terraform wrapper](https://github.com/hashicorp/setup-terraform#inputs). Not needed by these actions (they capture output themselves) and it adds a `[command]` line to `plan-output.txt` | No | `false` |
 | `azure-client-id` | Azure Client ID for OIDC | **Yes** | - |
 | `azure-tenant-id` | Azure Tenant ID | **Yes** | - |
 | `azure-subscription-id` | Azure Subscription ID | **Yes** | - |
@@ -35,7 +38,7 @@ Setup Azure CLI, Terraform, and login to Azure with OIDC authentication.
 | Output | Description |
 |--------|-------------|
 | `terraform-version` | The installed Terraform version |
-| `azure-cli-version` | The installed Azure CLI version |
+| `azure-cli-version` | The Azure CLI version found on the runner |
 
 ### Example
 
@@ -47,10 +50,10 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -71,16 +74,19 @@ Run terraform format check, init, validate, and optionally plan/apply.
 | **Working directory** |
 | `working-directory` | Working directory for Terraform | No | `.` |
 | **Format check options** |
+| `run-fmt` | Run `terraform fmt -check -recursive` | No | `false` |
 | `fail-on-fmt-error` | Fail the workflow if terraform fmt check fails | No | `false` |
+| **Validate options** |
+| `run-validate` | Run `terraform validate` after init | No | `false` |
 | **Init options** |
-| `backend-config` | Backend configuration options for terraform init | No | `''` |
+| `backend-config` | Backend flags for `terraform init`, whitespace/newline separated (e.g. `-backend-config=key=x.tfstate -backend-config=backend.hcl`). Passed as separate args, never through a shell — values containing spaces aren't supported; put them in a backend file | No | `''` |
 | `init-upgrade` | Run terraform init with -upgrade flag | No | `false` |
 | `init-reconfigure` | Run terraform init with -reconfigure flag | No | `false` |
 | **Plan options** |
-| `run-plan` | Run terraform plan after init | No | `true` |
+| `run-plan` | Run terraform plan after init (also runs when `run-apply` is `true` and no `use-plan-file`) | No | `false` |
 | `plan-file` | Output plan file name | No | `tfplan` |
 | `plan-destroy` | Run destroy plan instead of apply plan | No | `false` |
-| `plan-generate-json` | Generate JSON output of the plan | No | `true` |
+| `plan-generate-json` | Generate JSON output of the plan (`<plan-file>.json`, needed by `terraform-plan-extract`) | No | `false` |
 | `plan-target` | Resource address(es) to target (comma or newline separated) | No | `''` |
 | **Apply options** |
 | `run-apply` | Run terraform apply | No | `false` |
@@ -88,13 +94,15 @@ Run terraform format check, init, validate, and optionally plan/apply.
 | `apply-output-file` | Output file name for apply output | No | `apply-output.txt` |
 | `apply-parallelism` | Number of concurrent operations during apply | No | `10` (Terraform default) |
 
+Init always runs; fmt, validate, plan and apply are opt-in. Steps never shell out — Terraform is invoked with an argv array via `@actions/exec`, output is streamed to the log and saved to the output files with no size limit.
+
 ### Outputs
 
 | Output | Description |
 |--------|-------------|
-| `fmt-outcome` | Format check outcome (`success`, `failure`) |
+| `fmt-outcome` | Format check outcome (`success`, `failure`, `skipped`) |
 | `init-outcome` | Init outcome (`success`, `failure`) |
-| `validate-outcome` | Validate outcome (`success`, `failure`) |
+| `validate-outcome` | Validate outcome (`success`, `failure`, `skipped`) |
 | `plan-outcome` | Plan outcome (`success`, `failure`, `skipped`) |
 | `apply-outcome` | Apply outcome (`success`, `failure`, `skipped`) |
 | `plan-exitcode` | Terraform plan exit code (`0`=no changes, `1`=error, `2`=changes) |
@@ -111,10 +119,10 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -122,9 +130,10 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./infra
+          run-plan: true
           backend-config: '-backend-config=key=${{ github.ref_name }}.tfstate'
 ```
 
@@ -138,10 +147,10 @@ jobs:
       matrix:
         environment: [dev, staging, prod]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -149,16 +158,21 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./envs/${{ matrix.environment }}
+          run-fmt: true
           fail-on-fmt-error: true
+          run-validate: true
+          run-plan: true
+          plan-generate-json: true
 
       - name: Create Summary
-        uses: testfy-ai/actions/terraform-summary@main
+        uses: wpbastos-com/actions/terraform-summary@v0
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
+          plan-output-file: ${{ steps.terraform.outputs.plan-output-file }}
           fmt-outcome: ${{ steps.terraform.outputs.fmt-outcome }}
           init-outcome: ${{ steps.terraform.outputs.init-outcome }}
           validate-outcome: ${{ steps.terraform.outputs.validate-outcome }}
@@ -174,17 +188,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Apply
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./infra
           run-apply: true
@@ -232,7 +246,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Show Outputs
-  uses: testfy-ai/actions/terraform-command@main
+  uses: wpbastos-com/actions/terraform-command@v0
   with:
     working-directory: ./envs/prod
     command: output
@@ -242,7 +256,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: List State
-  uses: testfy-ai/actions/terraform-command@main
+  uses: wpbastos-com/actions/terraform-command@v0
   with:
     working-directory: ./envs/prod
     command: state-list
@@ -252,7 +266,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Show Resource
-  uses: testfy-ai/actions/terraform-command@main
+  uses: wpbastos-com/actions/terraform-command@v0
   with:
     working-directory: ./envs/prod
     command: state-show
@@ -263,7 +277,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Import Resource
-  uses: testfy-ai/actions/terraform-command@main
+  uses: wpbastos-com/actions/terraform-command@v0
   with:
     working-directory: ./envs/prod
     command: import
@@ -275,7 +289,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Force Unlock
-  uses: testfy-ai/actions/terraform-command@main
+  uses: wpbastos-com/actions/terraform-command@v0
   with:
     working-directory: ./envs/prod
     command: force-unlock
@@ -293,8 +307,9 @@ Create a validation summary of Terraform steps for PRs. Writes to GitHub Job Sum
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `environment` | Environment name | **Yes** | - |
-| `working-directory` | Working directory where plan-output.txt is located | **Yes** | - |
-| `fmt-outcome` | Format check outcome (`success`, `failure`) | **Yes** | - |
+| `working-directory` | Working directory (used to locate `plan-output.txt` when `plan-output-file` isn't set) | **Yes** | - |
+| `plan-output-file` | Path to the plan output text file — pass `terraform-run`'s `plan-output-file` output | No | `<working-directory>/plan-output.txt` |
+| `fmt-outcome` | Format check outcome (`success`, `failure`, `skipped`) | **Yes** | - |
 | `init-outcome` | Init outcome (`success`, `failure`) | **Yes** | - |
 | `validate-outcome` | Validate outcome (`success`, `failure`) | **Yes** | - |
 | `plan-outcome` | Plan outcome (`success`, `failure`, `skipped`) | **Yes** | - |
@@ -311,10 +326,11 @@ Create a validation summary of Terraform steps for PRs. Writes to GitHub Job Sum
 
 ```yaml
 - name: Create Summary
-  uses: testfy-ai/actions/terraform-summary@main
+  uses: wpbastos-com/actions/terraform-summary@v0
   with:
     environment: production
     working-directory: ./infra
+    plan-output-file: ${{ steps.terraform.outputs.plan-output-file }}
     fmt-outcome: ${{ steps.terraform.outputs.fmt-outcome }}
     init-outcome: ${{ steps.terraform.outputs.init-outcome }}
     validate-outcome: ${{ steps.terraform.outputs.validate-outcome }}
@@ -355,7 +371,7 @@ Extract and parse Terraform plan changes from JSON output. Useful for PR comment
 | **Summary** |
 | `summary` | Human-readable summary (e.g., `+2 to add, ~1 to change`) |
 | `has-changes` | Whether the plan has any changes (`true`/`false`) |
-| `has-resources` | Whether there are any resources affected (`true`/`false`) |
+| `has-resources` | **Deprecated** — identical to `has-changes`; will be removed in the next major |
 | **Resource counts** |
 | `add` | Number of resources to add |
 | `change` | Number of resources to change |
@@ -370,13 +386,15 @@ Extract and parse Terraform plan changes from JSON output. Useful for PR comment
 ```yaml
 - name: Terraform Plan
   id: terraform
-  uses: testfy-ai/actions/terraform-run@main
+  uses: wpbastos-com/actions/terraform-run@v0
   with:
     working-directory: ./infra
+    run-plan: true
+    plan-generate-json: true
 
 - name: Extract Plan Details
   id: extract
-  uses: testfy-ai/actions/terraform-plan-extract@main
+  uses: wpbastos-com/actions/terraform-plan-extract@v0
   with:
     environment: production
     working-directory: ./infra
@@ -384,7 +402,7 @@ Extract and parse Terraform plan changes from JSON output. Useful for PR comment
 
 - name: Comment on PR
   if: github.event_name == 'pull_request' && steps.extract.outputs.has-changes == 'true'
-  uses: actions/github-script@v8
+  uses: actions/github-script@v9
   with:
     script: |
       const summary = `${{ steps.extract.outputs.summary }}`;
@@ -479,7 +497,7 @@ jobs:
       actions: write
     steps:
       - name: Delete old workflow runs
-        uses: testfy-ai/actions/cleanup-workflow-runs@main
+        uses: wpbastos-com/actions/cleanup-workflow-runs@v0
         with:
           retention-days: ${{ github.event.inputs.retention_days || 30 }}
 ```
@@ -488,7 +506,7 @@ jobs:
 
 ```yaml
 - name: Delete old workflow runs
-  uses: testfy-ai/actions/cleanup-workflow-runs@main
+  uses: wpbastos-com/actions/cleanup-workflow-runs@v0
   with:
     retention-days: 14
     github-token: ${{ secrets.CUSTOM_PAT }}
@@ -532,10 +550,10 @@ jobs:
       matrix:
         environment: [shared, dev, test, stage, prod]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -543,24 +561,29 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./envs/${{ matrix.environment }}
+          run-fmt: true
           fail-on-fmt-error: true
+          run-validate: true
+          run-plan: true
+          plan-generate-json: true
 
       - name: Extract Plan
         id: extract
         if: steps.terraform.outputs.plan-has-changes == 'true'
-        uses: testfy-ai/actions/terraform-plan-extract@main
+        uses: wpbastos-com/actions/terraform-plan-extract@v0
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
 
       - name: Create Summary
-        uses: testfy-ai/actions/terraform-summary@main
+        uses: wpbastos-com/actions/terraform-summary@v0
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
+          plan-output-file: ${{ steps.terraform.outputs.plan-output-file }}
           fmt-outcome: ${{ steps.terraform.outputs.fmt-outcome }}
           init-outcome: ${{ steps.terraform.outputs.init-outcome }}
           validate-outcome: ${{ steps.terraform.outputs.validate-outcome }}
@@ -608,10 +631,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -619,24 +642,27 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./envs/${{ inputs.environment }}
+          run-plan: true
+          plan-generate-json: true
           plan-destroy: ${{ inputs.action == 'destroy' }}
 
       - name: Extract Plan
         id: extract
         if: steps.terraform.outputs.plan-has-changes == 'true'
-        uses: testfy-ai/actions/terraform-plan-extract@main
+        uses: wpbastos-com/actions/terraform-plan-extract@v0
         with:
           environment: ${{ inputs.environment }}
           working-directory: ./envs/${{ inputs.environment }}
 
       - name: Create Summary
-        uses: testfy-ai/actions/terraform-summary@main
+        uses: wpbastos-com/actions/terraform-summary@v0
         with:
           environment: ${{ inputs.environment }}
           working-directory: ./envs/${{ inputs.environment }}
+          plan-output-file: ${{ steps.terraform.outputs.plan-output-file }}
           fmt-outcome: ${{ steps.terraform.outputs.fmt-outcome }}
           init-outcome: ${{ steps.terraform.outputs.init-outcome }}
           validate-outcome: ${{ steps.terraform.outputs.validate-outcome }}
@@ -654,10 +680,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -670,7 +696,7 @@ jobs:
           path: ./envs/${{ inputs.environment }}
 
       - name: Terraform Apply
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./envs/${{ inputs.environment }}
           run-apply: true
@@ -703,10 +729,10 @@ jobs:
       matrix:
         environment: [dev, stage, prod]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -714,16 +740,21 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./envs/${{ matrix.environment }}
+          run-fmt: true
           fail-on-fmt-error: true
+          run-validate: true
+          run-plan: true
+          plan-generate-json: true
 
       - name: Create Summary
-        uses: testfy-ai/actions/terraform-summary@main
+        uses: wpbastos-com/actions/terraform-summary@v0
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
+          plan-output-file: ${{ steps.terraform.outputs.plan-output-file }}
           fmt-outcome: ${{ steps.terraform.outputs.fmt-outcome }}
           init-outcome: ${{ steps.terraform.outputs.init-outcome }}
           validate-outcome: ${{ steps.terraform.outputs.validate-outcome }}
@@ -744,10 +775,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: testfy-ai/actions/setup-azure-terraform@main
+        uses: wpbastos-com/actions/setup-azure-terraform@v0
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -760,11 +791,28 @@ jobs:
           path: ./envs/prod
 
       - name: Terraform Apply
-        uses: testfy-ai/actions/terraform-run@main
+        uses: wpbastos-com/actions/terraform-run@v0
         with:
           working-directory: ./envs/prod
           run-apply: true
           use-plan-file: tfplan
+```
+
+## Development
+
+Each action is a composite of `actions/github-script` steps; the JavaScript lives in `<action>/scripts/*.js` and is loaded at runtime from `$ACTION_PATH` (`github.action_path` passed through `env`, so Windows backslashes never hit a JS string literal). Scripts export `async ({ github, context, core, exec }) => { ... }` and read their inputs from `process.env`. Third-party actions are pinned to a commit SHA (with the version in a comment); Dependabot keeps them current.
+
+```bash
+node --test "tests/*.test.js"   # unit tests + an end-to-end run against a real terraform binary (skipped if absent)
+```
+
+CI (`.github/workflows/ci.yml`) runs `actionlint`, the test suite, and a smoke test that exercises the actions themselves against `tests/fixtures/terraform`.
+
+### Releasing
+
+```bash
+git tag v0.0.8 && git push origin v0.0.8                      # exact version
+git tag -f v0 && git push --force-with-lease origin v0        # move the major tag
 ```
 
 ## License

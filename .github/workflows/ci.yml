@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Syntax-check scripts
+        run: |
+          for f in */scripts/*.js tests/*.js; do node --check "$f"; done
+
+      - name: actionlint
+        env:
+          VERSION: 1.7.12
+        run: |
+          set -eu
+          case "$(uname -m)" in
+            x86_64) arch=amd64 ;;
+            aarch64|arm64) arch=arm64 ;;
+            *) echo "unsupported arch: $(uname -m)" >&2; exit 1 ;;
+          esac
+          base="https://github.com/rhysd/actionlint/releases/download/v${VERSION}"
+          tarball="actionlint_${VERSION}_linux_${arch}.tar.gz"
+          dir="$(mktemp -d)"
+          curl -sSfL -o "$dir/$tarball" "$base/$tarball"
+          curl -sSfL -o "$dir/checksums.txt" "$base/actionlint_${VERSION}_checksums.txt"
+          (cd "$dir" && grep " $tarball\$" checksums.txt | sha256sum -c -)
+          tar -xzf "$dir/$tarball" -C "$dir" actionlint
+          "$dir/actionlint" -color
+
+  test:
+    name: Unit + integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - run: node --test "tests/*.test.js"
+
+  smoke:
+    name: Actions smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: terraform-run (fmt, init, validate, plan)
+        id: run
+        uses: ./terraform-run
+        with:
+          working-directory: tests/fixtures/terraform
+          run-fmt: true
+          fail-on-fmt-error: true
+          run-validate: true
+          run-plan: true
+          plan-generate-json: true
+
+      - name: terraform-plan-extract
+        id: extract
+        uses: ./terraform-plan-extract
+        with:
+          environment: ci
+          working-directory: tests/fixtures/terraform
+          actor: ${{ github.actor }}
+          run-number: ${{ github.run_number }}
+          run-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: terraform-summary
+        id: summary
+        uses: ./terraform-summary
+        with:
+          environment: ci
+          working-directory: tests/fixtures/terraform
+          plan-output-file: ${{ steps.run.outputs.plan-output-file }}
+          fmt-outcome: ${{ steps.run.outputs.fmt-outcome }}
+          init-outcome: ${{ steps.run.outputs.init-outcome }}
+          validate-outcome: ${{ steps.run.outputs.validate-outcome }}
+          plan-outcome: ${{ steps.run.outputs.plan-outcome }}
+          plan-has-changes: ${{ steps.run.outputs.plan-has-changes }}
+
+      - name: terraform-run (apply)
+        id: apply
+        uses: ./terraform-run
+        with:
+          working-directory: tests/fixtures/terraform
+          run-apply: true
+          use-plan-file: tfplan
+
+      - name: terraform-command (output)
+        id: command
+        uses: ./terraform-command
+        with:
+          working-directory: tests/fixtures/terraform
+          command: output
+          output-name: greeting
+
+      - name: Assert outputs
+        env:
+          PLAN_OUTCOME: ${{ steps.run.outputs.plan-outcome }}
+          PLAN_HAS_CHANGES: ${{ steps.run.outputs.plan-has-changes }}
+          EXTRACT_ADD: ${{ steps.extract.outputs.add }}
+          EXTRACT_SUMMARY: ${{ steps.extract.outputs.summary }}
+          SUMMARY_RESULT: ${{ steps.summary.outputs.result }}
+          APPLY_OUTCOME: ${{ steps.apply.outputs.apply-outcome }}
+          COMMAND_OUTCOME: ${{ steps.command.outputs.outcome }}
+        run: |
+          set -eu
+          [ "$PLAN_OUTCOME" = success ]
+          [ "$PLAN_HAS_CHANGES" = true ]
+          [ "$EXTRACT_ADD" = 1 ]
+          [ "$EXTRACT_SUMMARY" = "+1 to add" ]
+          [ "$SUMMARY_RESULT" = success ]
+          [ "$APPLY_OUTCOME" = success ]
+          [ "$COMMAND_OUTCOME" = success ]
+          grep -q hello tests/fixtures/terraform/command-output.txt
+          echo "all assertions passed"

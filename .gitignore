@@ -39,3 +39,9 @@ node_modules/
 *.pem
 *.key
 credentials.json
+
+# Test fixtures state
+tests/fixtures/terraform/terraform.tfstate*
+tests/fixtures/terraform/tfplan*
+tests/fixtures/terraform/*-output.txt
+summary-*.md

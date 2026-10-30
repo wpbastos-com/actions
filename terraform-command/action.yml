@@ -1,6 +1,6 @@
 name: 'Terraform Command'
 description: 'Run common Terraform commands (output, state, refresh, import, etc.)'
-author: 'testfy.ai'
+author: 'wpbastos-com'
 
 branding:
   icon: 'terminal'
@@ -52,61 +52,23 @@ runs:
   steps:
     - name: Validate Inputs
       id: validate
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         COMMAND: ${{ inputs.command }}
         RESOURCE_ADDRESS: ${{ inputs.resource-address }}
         LOCK_ID: ${{ inputs.lock-id }}
         IMPORT_ID: ${{ inputs.import-id }}
       with:
         script: |
-          const command = process.env.COMMAND;
-          const resource = process.env.RESOURCE_ADDRESS;
-          const lockId = process.env.LOCK_ID;
-          const importId = process.env.IMPORT_ID;
-
-          const validCommands = ['output', 'state-list', 'state-show', 'refresh', 'force-unlock', 'import', 'providers', 'version'];
-
-          core.startGroup('Validating Inputs');
-
-          const errors = [];
-
-          if (!validCommands.includes(command)) {
-            errors.push(`Invalid command: ${command}. Valid commands: ${validCommands.join(', ')}`);
-          }
-
-          if (command === 'state-show' && !resource) {
-            errors.push('Resource address is required for state-show command');
-          }
-
-          if (command === 'force-unlock' && !lockId) {
-            errors.push('Lock ID is required for force-unlock command');
-          }
-
-          if (command === 'import') {
-            if (!resource) {
-              errors.push('Resource address is required for import command');
-            }
-            if (!importId) {
-              errors.push('Azure resource ID is required for import command');
-            }
-          }
-
-          if (errors.length > 0) {
-            for (const error of errors) {
-              core.error(error);
-            }
-            core.setFailed('Input validation failed');
-          } else {
-            core.info('Input validation passed');
-          }
-
-          core.endGroup();
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'validate-inputs.js'));
+          await script({ github, context, core, exec });
 
     - name: Run Terraform Command
       id: command
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
         COMMAND: ${{ inputs.command }}
         OUTPUT_NAME: ${{ inputs.output-name }}
@@ -115,82 +77,5 @@ runs:
         IMPORT_ID: ${{ inputs.import-id }}
       with:
         script: |
-          const { execSync } = require('child_process');
-          const fs = require('fs');
-          const path = require('path');
-
-          const workingDir = process.env.WORKING_DIR;
-          const command = process.env.COMMAND;
-          const outputFile = path.join(workingDir, 'command-output.txt');
-
-          core.startGroup(`Terraform ${command}`);
-
-          let tfCommand;
-          let exitCode = 0;
-          let output = '';
-
-          try {
-            switch (command) {
-              case 'output':
-                const outputName = process.env.OUTPUT_NAME;
-                tfCommand = outputName
-                  ? `terraform output -no-color "${outputName}"`
-                  : 'terraform output -no-color';
-                break;
-
-              case 'state-list':
-                tfCommand = 'terraform state list';
-                break;
-
-              case 'state-show':
-                const resource = process.env.RESOURCE_ADDRESS;
-                tfCommand = `terraform state show -no-color "${resource}"`;
-                break;
-
-              case 'refresh':
-                tfCommand = 'terraform refresh -no-color';
-                break;
-
-              case 'force-unlock':
-                const lockId = process.env.LOCK_ID;
-                tfCommand = `terraform force-unlock -force "${lockId}"`;
-                break;
-
-              case 'import':
-                const importResource = process.env.RESOURCE_ADDRESS;
-                const importId = process.env.IMPORT_ID;
-                tfCommand = `terraform import -no-color "${importResource}" "${importId}"`;
-                break;
-
-              case 'providers':
-                tfCommand = 'terraform providers';
-                break;
-
-              case 'version':
-                tfCommand = 'terraform version';
-                break;
-            }
-
-            core.info(`Running: ${tfCommand}`);
-
-            output = execSync(tfCommand, {
-              cwd: workingDir,
-              encoding: 'utf8',
-              stdio: 'pipe'
-            });
-
-            core.info(output);
-            core.setOutput('outcome', 'success');
-
-          } catch (error) {
-            exitCode = error.status || 1;
-            output = error.stdout || error.stderr || error.message;
-            core.error(output);
-            core.setOutput('outcome', 'failure');
-            core.setFailed(`Terraform ${command} failed with exit code ${exitCode}`);
-          }
-
-          fs.writeFileSync(outputFile, output);
-          core.setOutput('exit_code', exitCode.toString());
-
-          core.endGroup();
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'run-command.js'));
+          await script({ github, context, core, exec });
