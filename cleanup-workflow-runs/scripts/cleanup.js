@@ -11,56 +11,68 @@ module.exports = async ({ github, context, core }) => {
   core.info(`Runs created before this date will be deleted`);
   core.endGroup();
 
-  // Let the API do the date filtering and collect every page up front.
-  // Deleting while paginating shifts the remaining pages and skips runs.
-  core.startGroup('Fetching workflow runs');
-  const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    created: `<${cutoffQuery}`,
-    per_page: 100
-  });
-  const oldRuns = runs.filter(run => new Date(run.created_at) < cutoffDate);
-  core.info(`Found ${oldRuns.length} runs older than ${retentionDays} days`);
-  core.endGroup();
+  // Let the API do the date filtering and collect every page before deleting
+  // (deleting while paginating shifts the remaining pages and skips runs).
+  // A `created` search returns at most 1,000 runs, so re-query after each
+  // batch until nothing new comes back.
+  const listOldRuns = async () => {
+    const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      created: `<${cutoffQuery}`,
+      per_page: 100
+    });
+    return runs.filter(run => new Date(run.created_at) < cutoffDate);
+  };
 
   let totalDeleted = 0;
   let totalSkipped = 0;
   let totalErrors = 0;
+  const attempted = new Set();
 
-  // Group by workflow for readable logs
-  const byWorkflow = new Map();
-  for (const run of oldRuns) {
-    if (!byWorkflow.has(run.name)) byWorkflow.set(run.name, []);
-    byWorkflow.get(run.name).push(run);
-  }
+  for (let batch = 1; ; batch++) {
+    core.startGroup(`Fetching workflow runs (batch ${batch})`);
+    const oldRuns = (await listOldRuns()).filter(run => !attempted.has(run.id));
+    core.info(`Found ${oldRuns.length} runs older than ${retentionDays} days not yet processed`);
+    core.endGroup();
 
-  for (const [workflowName, workflowRuns] of byWorkflow) {
-    core.startGroup(`Processing: ${workflowName}`);
-    let workflowDeleted = 0;
+    if (oldRuns.length === 0) break;
 
-    for (const run of workflowRuns) {
-      try {
-        await github.rest.actions.deleteWorkflowRun({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          run_id: run.id
-        });
-        workflowDeleted++;
-        totalDeleted++;
-      } catch (error) {
-        if (error.status === 403) {
-          core.info(`Skipped run #${run.run_number} (in progress or protected)`);
-          totalSkipped++;
-        } else {
-          core.error(`Error deleting run #${run.run_number}: ${error.message}`);
-          totalErrors++;
-        }
-      }
+    // Group by workflow for readable logs
+    const byWorkflow = new Map();
+    for (const run of oldRuns) {
+      if (!byWorkflow.has(run.name)) byWorkflow.set(run.name, []);
+      byWorkflow.get(run.name).push(run);
     }
 
-    core.info(`Deleted ${workflowDeleted} runs from ${workflowName}`);
-    core.endGroup();
+    for (const [workflowName, workflowRuns] of byWorkflow) {
+      core.startGroup(`Processing: ${workflowName}`);
+      let workflowDeleted = 0;
+
+      for (const run of workflowRuns) {
+        attempted.add(run.id);
+        try {
+          await github.rest.actions.deleteWorkflowRun({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: run.id
+          });
+          workflowDeleted++;
+          totalDeleted++;
+        } catch (error) {
+          if (error.status === 403) {
+            core.info(`Skipped run #${run.run_number} (in progress or protected)`);
+            totalSkipped++;
+          } else {
+            core.error(`Error deleting run #${run.run_number}: ${error.message}`);
+            totalErrors++;
+          }
+        }
+      }
+
+      core.info(`Deleted ${workflowDeleted} runs from ${workflowName}`);
+      core.endGroup();
+    }
   }
 
   // Set outputs

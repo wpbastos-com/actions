@@ -800,7 +800,7 @@ jobs:
 
 ## Development
 
-Each action is a composite of `actions/github-script` steps; the JavaScript lives in `<action>/scripts/*.js` and is loaded with `require('${{ github.action_path }}/scripts/<name>.js')`. Scripts export `async ({ github, context, core, exec }) => { ... }` and read their inputs from `process.env`. Third-party actions are pinned to a commit SHA (with the version in a comment); Dependabot keeps them current.
+Each action is a composite of `actions/github-script` steps; the JavaScript lives in `<action>/scripts/*.js` and is loaded at runtime from `$ACTION_PATH` (`github.action_path` passed through `env`, so Windows backslashes never hit a JS string literal). Scripts export `async ({ github, context, core, exec }) => { ... }` and read their inputs from `process.env`. Third-party actions are pinned to a commit SHA (with the version in a comment); Dependabot keeps them current.
 
 ```bash
 node --test "tests/*.test.js"   # unit tests + an end-to-end run against a real terraform binary (skipped if absent)

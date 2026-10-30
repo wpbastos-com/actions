@@ -54,6 +54,7 @@ runs:
       id: summary
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         ENVIRONMENT: ${{ inputs.environment }}
         WORKING_DIR: ${{ inputs.working-directory }}
         FMT_OUTCOME: ${{ inputs.fmt-outcome }}
@@ -68,5 +69,5 @@ runs:
         # So the script returns the result instead, as a plain string.
         result-encoding: string
         script: |
-          const script = require('${{ github.action_path }}/scripts/summary.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'summary.js'));
           return await script({ github, context, core, exec });

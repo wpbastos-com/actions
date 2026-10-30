@@ -54,19 +54,21 @@ runs:
       id: validate
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         COMMAND: ${{ inputs.command }}
         RESOURCE_ADDRESS: ${{ inputs.resource-address }}
         LOCK_ID: ${{ inputs.lock-id }}
         IMPORT_ID: ${{ inputs.import-id }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/validate-inputs.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'validate-inputs.js'));
           await script({ github, context, core, exec });
 
     - name: Run Terraform Command
       id: command
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
         COMMAND: ${{ inputs.command }}
         OUTPUT_NAME: ${{ inputs.output-name }}
@@ -75,5 +77,5 @@ runs:
         IMPORT_ID: ${{ inputs.import-id }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/run-command.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'run-command.js'));
           await script({ github, context, core, exec });

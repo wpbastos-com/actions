@@ -126,33 +126,37 @@ runs:
       if: inputs.run-fmt == 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
         FAIL_ON_FMT_ERROR: ${{ inputs.fail-on-fmt-error }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/fmt.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'fmt.js'));
           await script({ github, context, core, exec });
 
     - name: Skip Format Check
       id: fmt-skip
       if: inputs.run-fmt != 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/skip.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'skip.js'));
           await script({ github, context, core, exec });
 
     - name: Terraform Init
       id: init
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
         BACKEND_CONFIG: ${{ inputs.backend-config }}
         INIT_UPGRADE: ${{ inputs.init-upgrade }}
         INIT_RECONFIGURE: ${{ inputs.init-reconfigure }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/init.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'init.js'));
           await script({ github, context, core, exec });
 
     - name: Terraform Validate
@@ -160,19 +164,22 @@ runs:
       if: inputs.run-validate == 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/validate.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'validate.js'));
           await script({ github, context, core, exec });
 
     - name: Skip Validate
       id: validate-skip
       if: inputs.run-validate != 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/skip.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'skip.js'));
           await script({ github, context, core, exec });
 
     - name: Terraform Plan
@@ -180,6 +187,7 @@ runs:
       if: (inputs.run-plan == 'true' || inputs.run-apply == 'true') && inputs.use-plan-file == ''
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
         PLAN_FILE: ${{ inputs.plan-file }}
         DESTROY: ${{ inputs.plan-destroy }}
@@ -187,16 +195,18 @@ runs:
         TARGET: ${{ inputs.plan-target }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/plan.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'plan.js'));
           await script({ github, context, core, exec });
 
     - name: Skip Plan
       id: plan-skip
       if: (inputs.run-plan != 'true' && inputs.run-apply != 'true') || inputs.use-plan-file != ''
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/plan-skip.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'plan-skip.js'));
           await script({ github, context, core, exec });
 
     - name: Terraform Apply
@@ -204,6 +214,7 @@ runs:
       if: inputs.run-apply == 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         WORKING_DIR: ${{ inputs.working-directory }}
         PLAN_FILE: ${{ inputs.plan-file }}
         USE_PLAN_FILE: ${{ inputs.use-plan-file }}
@@ -211,14 +222,16 @@ runs:
         PARALLELISM: ${{ inputs.apply-parallelism }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/apply.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'apply.js'));
           await script({ github, context, core, exec });
 
     - name: Skip Apply
       id: apply-skip
       if: inputs.run-apply != 'true'
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/skip.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'skip.js'));
           await script({ github, context, core, exec });

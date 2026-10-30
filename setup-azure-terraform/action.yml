@@ -49,6 +49,7 @@ runs:
     - name: Set Terraform Azure Environment Variables
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
+        ACTION_PATH: ${{ github.action_path }}
         USE_OIDC: 'true'
         USE_AZUREAD: 'true'
         CLIENT_ID: ${{ inputs.azure-client-id }}
@@ -56,7 +57,7 @@ runs:
         SUBSCRIPTION_ID: ${{ inputs.azure-subscription-id }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/set-azure-env.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'set-azure-env.js'));
           await script({ github, context, core, exec });
 
     - name: Azure Login (OIDC)
@@ -69,7 +70,9 @@ runs:
     - name: Verify Setup
       id: verify
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ACTION_PATH: ${{ github.action_path }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/scripts/verify.js');
+          const script = require(require('path').join(process.env.ACTION_PATH, 'scripts', 'verify.js'));
           await script({ github, context, core, exec });

@@ -138,9 +138,13 @@ test('cleanup-workflow-runs filters via API, deletes, and classifies 403 vs erro
     { id: 4, run_number: 4, name: 'Deploy', created_at: old(1) } // API shouldn't return this, but guard anyway
   ];
   let paginateArgs;
+  let calls = 0;
   const deleted = [];
+  // Simulate the 1,000-result search cap: first query returns a subset, the
+  // second returns what's left (minus what was deleted), the third nothing new.
+  const pages = [runs.slice(0, 2), runs.slice(1), runs.slice(1, 3)];
   const github = {
-    paginate: async (fn, args) => { paginateArgs = args; assert.equal(fn, github.rest.actions.listWorkflowRunsForRepo); return runs; },
+    paginate: async (fn, args) => { paginateArgs = args; assert.equal(fn, github.rest.actions.listWorkflowRunsForRepo); return pages[calls++] || []; },
     rest: { actions: {
       listWorkflowRunsForRepo: () => {},
       deleteWorkflowRun: async ({ run_id }) => {
@@ -156,8 +160,9 @@ test('cleanup-workflow-runs filters via API, deletes, and classifies 403 vs erro
   assert.match(paginateArgs.created, /^<\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
   assert.equal(paginateArgs.per_page, 100);
   assert.deepEqual(deleted, [1]);
+  assert.equal(calls, 3, 're-queries until no unprocessed runs remain');
   assert.equal(out.outputs['total-deleted'], 1);
-  assert.equal(out.outputs['total-skipped'], 1);
+  assert.equal(out.outputs['total-skipped'], 1, 'each run attempted once even if returned again');
   assert.equal(out.outputs['total-errors'], 1);
   assert.match(out.summary, /\| Runs Deleted \| 1 \|/);
 });
