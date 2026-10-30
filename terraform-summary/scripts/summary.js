@@ -47,6 +47,9 @@ module.exports = async ({ github, context, core }) => {
                 validateOutcome === 'failure' || planOutcome === 'failure';
   const result = failed ? 'failure' : 'success';
 
-  core.setOutput('result', result);
   core.setOutput('summary-file', summaryFile);
+
+  // Returned, not setOutput: github-script overwrites `result` with the
+  // script's return value (see action.yml).
+  return result;
 };

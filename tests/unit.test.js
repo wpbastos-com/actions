@@ -41,11 +41,11 @@ test('terraform-summary fails when any step failed and honours plan-output-file'
   process.chdir(dir);
   try {
     const { core, out } = fakeCore();
-    await withEnv({
+    const result = await withEnv({
       ENVIRONMENT: 'prod', WORKING_DIR: '/elsewhere', PLAN_OUTPUT_FILE: planOut,
       FMT_OUTCOME: 'success', INIT_OUTCOME: 'success', VALIDATE_OUTCOME: 'failure', PLAN_OUTCOME: 'success', PLAN_HAS_CHANGES: 'true'
     }, () => script('terraform-summary/scripts/summary.js')({ core }));
-    assert.equal(out.outputs.result, 'failure');
+    assert.equal(result, 'failure');
     assert.equal(out.outputs['summary-file'], 'summary-prod.md');
     assert.match(out.summary, /\| Validate \| ❌ \|/);
     assert.match(out.summary, /Changes detected/);

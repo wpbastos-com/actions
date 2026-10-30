@@ -63,6 +63,10 @@ runs:
         PLAN_HAS_CHANGES: ${{ inputs.plan-has-changes }}
         PLAN_OUTPUT_FILE: ${{ inputs.plan-output-file }}
       with:
+        # github-script writes the script's return value to its own `result`
+        # output after the script runs, clobbering a core.setOutput('result').
+        # So the script returns the result instead, as a plain string.
+        result-encoding: string
         script: |
           const script = require('${{ github.action_path }}/scripts/summary.js');
-          await script({ github, context, core, exec });
+          return await script({ github, context, core, exec });
