@@ -1,6 +1,6 @@
 name: 'Terraform Run'
 description: 'Run terraform format check, init, validate, and optionally plan/apply'
-author: 'testfy.ai'
+author: 'wpbastos-com'
 
 branding:
   icon: 'terminal'
@@ -31,7 +31,7 @@ inputs:
 
   # Init options
   backend-config:
-    description: 'Backend configuration options for terraform init (e.g., -backend-config=key=value)'
+    description: 'Backend configuration flags for terraform init, whitespace/newline separated (e.g., -backend-config=key=value). Passed as separate args, no shell.'
     required: false
     default: ''
   init-upgrade:
@@ -124,49 +124,27 @@ runs:
     - name: Terraform Format Check
       id: fmt
       if: inputs.run-fmt == 'true'
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIR: ${{ inputs.working-directory }}
         FAIL_ON_FMT_ERROR: ${{ inputs.fail-on-fmt-error }}
       with:
         script: |
-          const { execSync } = require('child_process');
-          const workingDir = process.env.WORKING_DIR;
-          const failOnFmtError = process.env.FAIL_ON_FMT_ERROR === 'true';
-
-          core.startGroup(`Terraform Format Check in ${workingDir}`);
-
-          try {
-            execSync('terraform fmt -check -recursive', {
-              cwd: workingDir,
-              encoding: 'utf8',
-              stdio: ['pipe', 'pipe', 'pipe']
-            });
-            core.setOutput('outcome', 'success');
-            core.info('Terraform format check passed');
-          } catch (error) {
-            core.setOutput('outcome', 'failure');
-            const message = 'Terraform files need formatting. Run: terraform fmt -recursive';
-            if (failOnFmtError) {
-              core.setFailed(message);
-            } else {
-              core.warning(message);
-            }
-          }
-
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/fmt.js');
+          await script({ github, context, core, exec });
 
     - name: Skip Format Check
       id: fmt-skip
       if: inputs.run-fmt != 'true'
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
-          core.setOutput('outcome', 'skipped');
+          const script = require('${{ github.action_path }}/scripts/skip.js');
+          await script({ github, context, core, exec });
 
     - name: Terraform Init
       id: init
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIR: ${{ inputs.working-directory }}
         BACKEND_CONFIG: ${{ inputs.backend-config }}
@@ -174,94 +152,33 @@ runs:
         INIT_RECONFIGURE: ${{ inputs.init-reconfigure }}
       with:
         script: |
-          const { execSync } = require('child_process');
-          const workingDir = process.env.WORKING_DIR;
-          const backendConfig = process.env.BACKEND_CONFIG;
-          const initUpgrade = process.env.INIT_UPGRADE === 'true';
-          const initReconfigure = process.env.INIT_RECONFIGURE === 'true';
-
-          core.startGroup(`Terraform Init in ${workingDir}`);
-
-          try {
-            let cmd = 'terraform init -input=false -no-color';
-
-            if (initUpgrade) {
-              cmd += ' -upgrade';
-              core.info('Using -upgrade flag');
-            }
-
-            if (initReconfigure) {
-              cmd += ' -reconfigure';
-              core.info('Using -reconfigure flag');
-            }
-
-            if (backendConfig) {
-              cmd += ` ${backendConfig}`;
-              core.info(`Using backend config: ${backendConfig}`);
-            }
-
-            core.info(`Running: ${cmd}`);
-            const output = execSync(cmd, {
-              cwd: workingDir,
-              encoding: 'utf8',
-              stdio: ['pipe', 'pipe', 'pipe']
-            });
-
-            core.info(output);
-            core.setOutput('outcome', 'success');
-            core.info('Terraform init completed successfully');
-          } catch (error) {
-            core.error(error.stdout || error.message);
-            if (error.stderr) core.error(error.stderr);
-            core.setOutput('outcome', 'failure');
-            core.setFailed(`Terraform init failed: ${error.message}`);
-          }
-
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/init.js');
+          await script({ github, context, core, exec });
 
     - name: Terraform Validate
       id: validate
       if: inputs.run-validate == 'true'
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIR: ${{ inputs.working-directory }}
       with:
         script: |
-          const { execSync } = require('child_process');
-          const workingDir = process.env.WORKING_DIR;
-
-          core.startGroup(`Terraform Validate in ${workingDir}`);
-
-          try {
-            const output = execSync('terraform validate -no-color', {
-              cwd: workingDir,
-              encoding: 'utf8',
-              stdio: ['pipe', 'pipe', 'pipe']
-            });
-            core.info(output);
-            core.setOutput('outcome', 'success');
-            core.info('Terraform validate passed');
-          } catch (error) {
-            core.error(error.stdout || error.message);
-            if (error.stderr) core.error(error.stderr);
-            core.setOutput('outcome', 'failure');
-            core.setFailed(`Terraform validate failed: ${error.message}`);
-          }
-
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/validate.js');
+          await script({ github, context, core, exec });
 
     - name: Skip Validate
       id: validate-skip
       if: inputs.run-validate != 'true'
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
-          core.setOutput('outcome', 'skipped');
+          const script = require('${{ github.action_path }}/scripts/skip.js');
+          await script({ github, context, core, exec });
 
     - name: Terraform Plan
       id: plan
       if: (inputs.run-plan == 'true' || inputs.run-apply == 'true') && inputs.use-plan-file == ''
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIR: ${{ inputs.working-directory }}
         PLAN_FILE: ${{ inputs.plan-file }}
@@ -270,102 +187,22 @@ runs:
         TARGET: ${{ inputs.plan-target }}
       with:
         script: |
-          const { execSync, spawnSync } = require('child_process');
-          const fs = require('fs');
-          const workingDir = process.env.WORKING_DIR;
-          const planFile = process.env.PLAN_FILE;
-          const isDestroy = process.env.DESTROY === 'true';
-          const generateJson = process.env.GENERATE_JSON === 'true';
-          const targetInput = process.env.TARGET || '';
-
-          // Parse targets (comma or newline separated)
-          const targets = targetInput
-            .split(/[,\n]/)
-            .map(t => t.trim())
-            .filter(t => t.length > 0);
-
-          core.startGroup(`Terraform Plan in ${workingDir}`);
-
-          if (isDestroy) {
-            core.info('Running destroy plan');
-          }
-
-          if (targets.length > 0) {
-            core.info(`Targeting: ${targets.join(', ')}`);
-          }
-
-          // Run plan (detailed-exitcode: 0=no changes, 1=error, 2=changes)
-          const planResult = spawnSync('terraform', [
-            'plan',
-            '-detailed-exitcode',
-            '-input=false',
-            '-no-color',
-            ...(isDestroy ? ['-destroy'] : []),
-            ...targets.map(t => `-target=${t}`),
-            `-out=${planFile}`
-          ], {
-            cwd: workingDir,
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'pipe']
-          });
-
-          const exitcode = planResult.status;
-          const output = planResult.stdout + planResult.stderr;
-
-          // Write output to file
-          fs.writeFileSync(`${workingDir}/plan-output.txt`, output);
-          core.info(output);
-
-          // Set outputs
-          core.setOutput('exitcode', exitcode.toString());
-
-          // Exit code: 0 = no changes, 1 = error, 2 = changes
-          const hasChanges = exitcode === 2;
-          core.setOutput('has_changes', hasChanges.toString());
-
-          if (exitcode === 1) {
-            core.setOutput('outcome', 'failure');
-            core.setFailed('Terraform plan failed with errors');
-            core.endGroup();
-            return;
-          }
-
-          core.setOutput('outcome', 'success');
-          core.info(`Plan completed: exitcode=${exitcode}, has_changes=${hasChanges}`);
-
-          // Generate JSON if requested for all successful plan runs
-          if (generateJson) {
-            core.info('Generating plan JSON...');
-            try {
-              // Stream `terraform show -json` straight to disk via shell
-              // redirect — never capture stdout into a JS buffer. A large
-              // prod plan's JSON exceeds execSync's default 1 MB maxBuffer and
-              // was throwing ENOBUFS (empty ${planFile}.json + a noisy
-              // ##[error] + unreliable plan-summary counts downstream).
-              execSync(`terraform show -no-color -json ${planFile} > ${planFile}.json`, {
-                cwd: workingDir
-              });
-              core.info('Plan JSON generated successfully');
-            } catch (error) {
-              core.error(`Failed to generate JSON: ${error.message}`);
-            }
-          }
-
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/plan.js');
+          await script({ github, context, core, exec });
 
     - name: Skip Plan
       id: plan-skip
       if: (inputs.run-plan != 'true' && inputs.run-apply != 'true') || inputs.use-plan-file != ''
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
-          core.setOutput('outcome', 'skipped');
-          core.setOutput('has_changes', 'false');
+          const script = require('${{ github.action_path }}/scripts/plan-skip.js');
+          await script({ github, context, core, exec });
 
     - name: Terraform Apply
       id: apply
       if: inputs.run-apply == 'true'
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         WORKING_DIR: ${{ inputs.working-directory }}
         PLAN_FILE: ${{ inputs.plan-file }}
@@ -374,56 +211,14 @@ runs:
         PARALLELISM: ${{ inputs.apply-parallelism }}
       with:
         script: |
-          const { spawnSync } = require('child_process');
-          const fs = require('fs');
-          const workingDir = process.env.WORKING_DIR;
-          const defaultPlanFile = process.env.PLAN_FILE;
-          const usePlanFile = process.env.USE_PLAN_FILE;
-          const outputFile = process.env.OUTPUT_FILE;
-          const parallelism = process.env.PARALLELISM;
-
-          // Use provided plan file or default
-          const planFile = usePlanFile || defaultPlanFile;
-
-          core.startGroup(`Terraform Apply in ${workingDir}`);
-
-          core.info(`Applying plan: ${planFile}`);
-
-          const args = [
-            'apply',
-            '-input=false',
-            '-auto-approve',
-            '-no-color',
-            ...(parallelism ? [`-parallelism=${parallelism}`] : []),
-            planFile
-          ];
-
-          const result = spawnSync('terraform', args, {
-            cwd: workingDir,
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'pipe']
-          });
-
-          const output = result.stdout + result.stderr;
-
-          // Write output to file
-          fs.writeFileSync(`${workingDir}/${outputFile}`, output);
-          core.info(output);
-
-          if (result.status !== 0) {
-            core.setOutput('outcome', 'failure');
-            core.setFailed('Terraform apply failed');
-          } else {
-            core.setOutput('outcome', 'success');
-            core.info('Terraform apply completed successfully');
-          }
-
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/apply.js');
+          await script({ github, context, core, exec });
 
     - name: Skip Apply
       id: apply-skip
       if: inputs.run-apply != 'true'
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
-          core.setOutput('outcome', 'skipped');
+          const script = require('${{ github.action_path }}/scripts/skip.js');
+          await script({ github, context, core, exec });

@@ -1,6 +1,6 @@
 name: 'Setup Azure and Terraform'
 description: 'Setup Azure CLI, Terraform, and login to Azure with OIDC'
-author: 'testfy.ai'
+author: 'wpbastos-com'
 
 branding:
   icon: 'cloud'
@@ -13,9 +13,9 @@ inputs:
     required: false
     default: 'latest'
   terraform-wrapper:
-    description: 'Enable terraform wrapper for output parsing'
+    description: 'Enable the setup-terraform wrapper (not needed by this action; it adds a [command] line to captured output)'
     required: false
-    default: 'true'
+    default: 'false'
 
   # Azure OIDC credentials (required)
   azure-client-id:
@@ -41,13 +41,13 @@ runs:
   steps:
     - name: Setup Terraform
       id: terraform
-      uses: hashicorp/setup-terraform@v4
+      uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
       with:
         terraform_version: ${{ inputs.terraform-version }}
         terraform_wrapper: ${{ inputs.terraform-wrapper }}
 
     - name: Set Terraform Azure Environment Variables
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       env:
         USE_OIDC: 'true'
         USE_AZUREAD: 'true'
@@ -56,28 +56,11 @@ runs:
         SUBSCRIPTION_ID: ${{ inputs.azure-subscription-id }}
       with:
         script: |
-          const fs = require('fs');
-          const envFile = process.env.GITHUB_ENV;
-
-          core.startGroup('Setting Terraform Azure Environment Variables');
-
-          const vars = {
-            'ARM_USE_OIDC': process.env.USE_OIDC,
-            'ARM_USE_AZUREAD': process.env.USE_AZUREAD,
-            'ARM_CLIENT_ID': process.env.CLIENT_ID,
-            'ARM_TENANT_ID': process.env.TENANT_ID,
-            'ARM_SUBSCRIPTION_ID': process.env.SUBSCRIPTION_ID
-          };
-
-          for (const [key, value] of Object.entries(vars)) {
-            fs.appendFileSync(envFile, `${key}=${value}\n`);
-            core.info(`Set ${key}`);
-          }
-
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/set-azure-env.js');
+          await script({ github, context, core, exec });
 
     - name: Azure Login (OIDC)
-      uses: azure/login@v3
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         client-id: ${{ inputs.azure-client-id }}
         tenant-id: ${{ inputs.azure-tenant-id }}
@@ -85,23 +68,8 @@ runs:
 
     - name: Verify Setup
       id: verify
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
       with:
         script: |
-          const { execSync } = require('child_process');
-
-          core.startGroup('Terraform Version');
-          const tfVersion = execSync('terraform version', { encoding: 'utf-8' });
-          core.info(tfVersion);
-          core.endGroup();
-
-          core.startGroup('Azure CLI Version');
-          const azVersion = execSync('az version --query \'"azure-cli"\' -o tsv', { encoding: 'utf-8' }).trim();
-          core.info(`Azure CLI version: ${azVersion}`);
-          core.setOutput('azure-cli-version', azVersion);
-          core.endGroup();
-
-          core.startGroup('Azure Account');
-          const azAccount = execSync('az account show --query "{subscription:name, tenant:tenantId}" -o table', { encoding: 'utf-8' });
-          core.info(azAccount);
-          core.endGroup();
+          const script = require('${{ github.action_path }}/scripts/verify.js');
+          await script({ github, context, core, exec });

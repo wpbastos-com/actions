@@ -1,0 +1,10 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    { "address": "a.new", "change": { "actions": ["create"] } },
+    { "address": "b.updated", "change": { "actions": ["update"] } },
+    { "address": "c.replaced", "change": { "actions": ["delete", "create"] } },
+    { "address": "d.gone", "change": { "actions": ["delete"] } },
+    { "address": "e.same", "change": { "actions": ["no-op"] } }
+  ]
+}
