@@ -4,7 +4,9 @@ A collection of reusable GitHub Actions for Terraform and Azure workflows.
 
 ## Versioning
 
-Reference actions by the major tag (`@v0`), which is moved on every release, or pin an exact tag (`@v0.0.8`). `@main` is the development branch — don't depend on it.
+Pin an exact tag (`@v0.0.8`) and let Dependabot bump it. While the actions are `0.x` there is **no floating major tag** — `v0` was dropped. A `v1` major tag will be introduced with the first stable release and then moved on every `v1.x.y`. `main`/`develop` are development branches — don't depend on them.
+
+GitHub Releases are published **only on exact `vX.Y.Z` tags**, never on a major tag: the organization enforces *release immutability*, which freezes any tag that has a release, and a frozen major tag could never be moved again.
 
 ## Actions
 
@@ -53,7 +55,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -122,7 +124,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -130,7 +132,7 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./infra
           run-plan: true
@@ -150,7 +152,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -158,7 +160,7 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./envs/${{ matrix.environment }}
           run-fmt: true
@@ -168,7 +170,7 @@ jobs:
           plan-generate-json: true
 
       - name: Create Summary
-        uses: wpbastos-com/actions/terraform-summary@v0
+        uses: wpbastos-com/actions/terraform-summary@v0.0.8
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
@@ -191,14 +193,14 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Apply
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./infra
           run-apply: true
@@ -246,7 +248,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Show Outputs
-  uses: wpbastos-com/actions/terraform-command@v0
+  uses: wpbastos-com/actions/terraform-command@v0.0.8
   with:
     working-directory: ./envs/prod
     command: output
@@ -256,7 +258,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: List State
-  uses: wpbastos-com/actions/terraform-command@v0
+  uses: wpbastos-com/actions/terraform-command@v0.0.8
   with:
     working-directory: ./envs/prod
     command: state-list
@@ -266,7 +268,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Show Resource
-  uses: wpbastos-com/actions/terraform-command@v0
+  uses: wpbastos-com/actions/terraform-command@v0.0.8
   with:
     working-directory: ./envs/prod
     command: state-show
@@ -277,7 +279,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Import Resource
-  uses: wpbastos-com/actions/terraform-command@v0
+  uses: wpbastos-com/actions/terraform-command@v0.0.8
   with:
     working-directory: ./envs/prod
     command: import
@@ -289,7 +291,7 @@ Run common Terraform commands for state inspection, management, and debugging.
 
 ```yaml
 - name: Force Unlock
-  uses: wpbastos-com/actions/terraform-command@v0
+  uses: wpbastos-com/actions/terraform-command@v0.0.8
   with:
     working-directory: ./envs/prod
     command: force-unlock
@@ -326,7 +328,7 @@ Create a validation summary of Terraform steps for PRs. Writes to GitHub Job Sum
 
 ```yaml
 - name: Create Summary
-  uses: wpbastos-com/actions/terraform-summary@v0
+  uses: wpbastos-com/actions/terraform-summary@v0.0.8
   with:
     environment: production
     working-directory: ./infra
@@ -386,7 +388,7 @@ Extract and parse Terraform plan changes from JSON output. Useful for PR comment
 ```yaml
 - name: Terraform Plan
   id: terraform
-  uses: wpbastos-com/actions/terraform-run@v0
+  uses: wpbastos-com/actions/terraform-run@v0.0.8
   with:
     working-directory: ./infra
     run-plan: true
@@ -394,7 +396,7 @@ Extract and parse Terraform plan changes from JSON output. Useful for PR comment
 
 - name: Extract Plan Details
   id: extract
-  uses: wpbastos-com/actions/terraform-plan-extract@v0
+  uses: wpbastos-com/actions/terraform-plan-extract@v0.0.8
   with:
     environment: production
     working-directory: ./infra
@@ -497,7 +499,7 @@ jobs:
       actions: write
     steps:
       - name: Delete old workflow runs
-        uses: wpbastos-com/actions/cleanup-workflow-runs@v0
+        uses: wpbastos-com/actions/cleanup-workflow-runs@v0.0.8
         with:
           retention-days: ${{ github.event.inputs.retention_days || 30 }}
 ```
@@ -506,7 +508,7 @@ jobs:
 
 ```yaml
 - name: Delete old workflow runs
-  uses: wpbastos-com/actions/cleanup-workflow-runs@v0
+  uses: wpbastos-com/actions/cleanup-workflow-runs@v0.0.8
   with:
     retention-days: 14
     github-token: ${{ secrets.CUSTOM_PAT }}
@@ -553,7 +555,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -561,7 +563,7 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./envs/${{ matrix.environment }}
           run-fmt: true
@@ -573,13 +575,13 @@ jobs:
       - name: Extract Plan
         id: extract
         if: steps.terraform.outputs.plan-has-changes == 'true'
-        uses: wpbastos-com/actions/terraform-plan-extract@v0
+        uses: wpbastos-com/actions/terraform-plan-extract@v0.0.8
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
 
       - name: Create Summary
-        uses: wpbastos-com/actions/terraform-summary@v0
+        uses: wpbastos-com/actions/terraform-summary@v0.0.8
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
@@ -634,7 +636,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -642,7 +644,7 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./envs/${{ inputs.environment }}
           run-plan: true
@@ -652,13 +654,13 @@ jobs:
       - name: Extract Plan
         id: extract
         if: steps.terraform.outputs.plan-has-changes == 'true'
-        uses: wpbastos-com/actions/terraform-plan-extract@v0
+        uses: wpbastos-com/actions/terraform-plan-extract@v0.0.8
         with:
           environment: ${{ inputs.environment }}
           working-directory: ./envs/${{ inputs.environment }}
 
       - name: Create Summary
-        uses: wpbastos-com/actions/terraform-summary@v0
+        uses: wpbastos-com/actions/terraform-summary@v0.0.8
         with:
           environment: ${{ inputs.environment }}
           working-directory: ./envs/${{ inputs.environment }}
@@ -683,7 +685,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -696,7 +698,7 @@ jobs:
           path: ./envs/${{ inputs.environment }}
 
       - name: Terraform Apply
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./envs/${{ inputs.environment }}
           run-apply: true
@@ -732,7 +734,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -740,7 +742,7 @@ jobs:
 
       - name: Terraform Plan
         id: terraform
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./envs/${{ matrix.environment }}
           run-fmt: true
@@ -750,7 +752,7 @@ jobs:
           plan-generate-json: true
 
       - name: Create Summary
-        uses: wpbastos-com/actions/terraform-summary@v0
+        uses: wpbastos-com/actions/terraform-summary@v0.0.8
         with:
           environment: ${{ matrix.environment }}
           working-directory: ./envs/${{ matrix.environment }}
@@ -778,7 +780,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Setup Azure and Terraform
-        uses: wpbastos-com/actions/setup-azure-terraform@v0
+        uses: wpbastos-com/actions/setup-azure-terraform@v0.0.8
         with:
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -791,7 +793,7 @@ jobs:
           path: ./envs/prod
 
       - name: Terraform Apply
-        uses: wpbastos-com/actions/terraform-run@v0
+        uses: wpbastos-com/actions/terraform-run@v0.0.8
         with:
           working-directory: ./envs/prod
           run-apply: true
@@ -810,9 +812,17 @@ CI (`.github/workflows/ci.yml`) runs `actionlint`, the test suite, and a smoke t
 
 ### Releasing
 
+After the squash-merge to `develop`:
+
 ```bash
-git tag v0.0.8 && git push origin v0.0.8                      # exact version
-git tag -f v0 && git push --force-with-lease origin v0        # move the major tag
+git tag -a v0.0.9 -m "v0.0.9: ..." && git push origin v0.0.9   # exact version tag
+gh release create v0.0.9 --generate-notes                       # release on the exact tag only
+```
+
+From `v1.0.0` on, also move the major tag (and never create a release on it):
+
+```bash
+git tag -f v1 && git push --force-with-lease origin v1
 ```
 
 ## License
