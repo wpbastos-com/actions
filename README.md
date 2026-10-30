@@ -806,7 +806,7 @@ Each action is a composite of `actions/github-script` steps; the JavaScript live
 node --test "tests/*.test.js"   # unit tests + an end-to-end run against a real terraform binary (skipped if absent)
 ```
 
-CI (`.github/workflows/ci.yml`, all jobs on `[self-hosted, ephemeral]` runners) runs `actionlint`, the test suite, and a smoke test that exercises the actions themselves against `tests/fixtures/terraform`.
+CI (`.github/workflows/ci.yml`) runs `actionlint`, the test suite, and a smoke test that exercises the actions themselves against `tests/fixtures/terraform`.
 
 ### Releasing
 

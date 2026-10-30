@@ -11,7 +11,7 @@ permissions:
 jobs:
   lint:
     name: Lint
-    runs-on: [self-hosted, ephemeral]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -44,7 +44,7 @@ jobs:
 
   test:
     name: Unit + integration tests
-    runs-on: [self-hosted, ephemeral]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -60,7 +60,7 @@ jobs:
 
   smoke:
     name: Actions smoke test
-    runs-on: [self-hosted, ephemeral]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
