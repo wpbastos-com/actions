@@ -1,0 +1,4 @@
+# Custom labels of our self-hosted runners, so actionlint accepts them in runs-on
+self-hosted-runner:
+  labels:
+    - ephemeral
